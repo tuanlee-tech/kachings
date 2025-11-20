@@ -1,5 +1,12 @@
-import { Bell, CheckCircle, Clock, DollarSign, Volume2, VolumeX } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import {
+  Bell,
+  CheckCircle,
+  Clock,
+  DollarSign,
+  Volume2,
+  VolumeX,
+} from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 
 const PaymentDashboard = () => {
   const [payments, setPayments] = useState([]);
@@ -13,17 +20,18 @@ const PaymentDashboard = () => {
 
   // Khởi tạo Web Speech API
   useEffect(() => {
-    if ('speechSynthesis' in window) {
-      console.log('Text-to-Speech ready!');
+    if ("speechSynthesis" in window) {
+      console.log("Text-to-Speech ready!");
     }
   }, []);
 
   useEffect(() => {
-    if ('speechSynthesis' in window) {
-      console.log('Speech synthesis is supported');
+    if ("speechSynthesis" in window) {
+      console.log("Speech synthesis is supported");
       const handleVoicesChanged = () => {
         const voices = window.speechSynthesis.getVoices();
-        const vietnameseVoice = voices.find(voice => voice.lang.startsWith('vi')) || null;
+        const vietnameseVoice =
+          voices.find((voice) => voice.lang.startsWith("vi")) || null;
         vietnameseVoiceRef.current = vietnameseVoice;
       };
 
@@ -36,7 +44,8 @@ const PaymentDashboard = () => {
 
   // Khởi tạo AudioContext và kiểm tra trạng thái khóa
   useEffect(() => {
-    audioContextRef.current = new (window.AudioContext || window.webkitAudioContext)();
+    audioContextRef.current = new (window.AudioContext ||
+      window.webkitAudioContext)();
 
     if (audioContextRef.current.state === "running") {
       setAudioLocked(false);
@@ -69,9 +78,9 @@ const PaymentDashboard = () => {
         id: Date.now(),
         amount: Math.floor(Math.random() * 800000) + 20000,
         description: `Đơn hàng #${Math.floor(Math.random() * 9999)}`,
-        status: 'PAID',
+        status: "PAID",
         createdAt: new Date().toISOString(),
-        customerName: 'Khách hàng'
+        customerName: "Khách hàng",
       };
       handleNewPayment(demoPayment);
     }, 15000);
@@ -81,16 +90,16 @@ const PaymentDashboard = () => {
 
   // Xử lý payment mới
   const handleNewPayment = (payment) => {
-    setPayments(prev => [payment, ...prev].slice(0, 50));
+    setPayments((prev) => [payment, ...prev].slice(0, 50));
 
-    const today = new Date().toLocaleDateString('vi-VN');
-    const paymentDate = new Date(payment.createdAt).toLocaleDateString('vi-VN');
+    const today = new Date().toLocaleDateString("vi-VN");
+    const paymentDate = new Date(payment.createdAt).toLocaleDateString("vi-VN");
     const isToday = today === paymentDate;
 
-    setStats(prev => ({
+    setStats((prev) => ({
       today: isToday ? prev.today + payment.amount : prev.today,
       total: prev.total + payment.amount,
-      count: prev.count + 1
+      count: prev.count + 1,
     }));
 
     setLastNotification(payment);
@@ -100,10 +109,10 @@ const PaymentDashboard = () => {
       playNotificationSound(payment.amount);
     }
 
-    if ('Notification' in window && Notification.permission === 'granted') {
-      new Notification('💰 Nhận tiền mới!', {
+    if ("Notification" in window && Notification.permission === "granted") {
+      new Notification("💰 Nhận tiền mới!", {
         body: `${formatMoney(payment.amount)}đ – ${payment.description}`,
-        icon: '💰',
+        icon: "/icon.png",
       });
     }
   };
@@ -115,9 +124,13 @@ const PaymentDashboard = () => {
   };
 
   const playVietnameseTTS = (text) => {
-    console.log('%cPlaying TTS: %c' + text, 'color: gray; font-weight: normal;', 'color: #00ee00; font-weight: bold;');
+    console.log(
+      "%cPlaying TTS: %c" + text,
+      "color: gray; font-weight: normal;",
+      "color: #00ee00; font-weight: bold;"
+    );
 
-    if ('speechSynthesis' in window) {
+    if ("speechSynthesis" in window) {
       const utterance = new SpeechSynthesisUtterance(text);
       if (vietnameseVoiceRef.current) {
         utterance.voice = vietnameseVoiceRef.current;
@@ -140,7 +153,7 @@ const PaymentDashboard = () => {
     o.connect(g);
     g.connect(ctx.destination);
     o.frequency.setValueAtTime(1000, ctx.currentTime);
-    o.type = 'sine';
+    o.type = "sine";
     g.gain.setValueAtTime(0.4, ctx.currentTime);
     g.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.2);
     o.start(ctx.currentTime);
@@ -148,56 +161,86 @@ const PaymentDashboard = () => {
   };
 
   // Format tiền
-  const formatMoney = (amount) => new Intl.NumberFormat('vi-VN').format(amount);
+  const formatMoney = (amount) => new Intl.NumberFormat("vi-VN").format(amount);
 
   const formatMoneyForSpeech = (amount) => {
     if (amount >= 1000000) {
       const m = Math.floor(amount / 1000000);
       const rest = amount % 1000000;
-      return rest ? `${numberToVietnamese(m)} triệu ${numberToVietnamese(rest)}` : `${numberToVietnamese(m)} triệu`;
+      return rest
+        ? `${numberToVietnamese(m)} triệu ${numberToVietnamese(rest)}`
+        : `${numberToVietnamese(m)} triệu`;
     }
     if (amount >= 1000) {
       const k = Math.floor(amount / 1000);
       const rest = amount % 1000;
-      return rest ? `${numberToVietnamese(k)} nghìn ${numberToVietnamese(rest)}` : `${numberToVietnamese(k)} nghìn`;
+      return rest
+        ? `${numberToVietnamese(k)} nghìn ${numberToVietnamese(rest)}`
+        : `${numberToVietnamese(k)} nghìn`;
     }
     return numberToVietnamese(amount);
   };
 
   const numberToVietnamese = (num) => {
-    if (num === 0) return 'không';
-    const units = ['', 'một', 'hai', 'ba', 'bốn', 'năm', 'sáu', 'bảy', 'tám', 'chín'];
-    const teens = ['mười', 'mười một', 'mười hai', 'mười ba', 'mười bốn', 'mười lăm', 'mười sáu', 'mười bảy', 'mười tám', 'mười chín'];
+    if (num === 0) return "không";
+    const units = [
+      "",
+      "một",
+      "hai",
+      "ba",
+      "bốn",
+      "năm",
+      "sáu",
+      "bảy",
+      "tám",
+      "chín",
+    ];
+    const teens = [
+      "mười",
+      "mười một",
+      "mười hai",
+      "mười ba",
+      "mười bốn",
+      "mười lăm",
+      "mười sáu",
+      "mười bảy",
+      "mười tám",
+      "mười chín",
+    ];
 
     const readThree = (n) => {
       const h = Math.floor(n / 100);
       const t = Math.floor((n % 100) / 10);
       const u = n % 10;
-      let str = '';
+      let str = "";
 
-      if (h > 0) str += units[h] + ' trăm ';
+      if (h > 0) str += units[h] + " trăm ";
       if (t === 1) str += teens[u];
-      else if (t > 1) str += units[t] + ' mươi ' + (u === 1 ? 'mốt' : u === 5 ? 'lăm' : units[u]);
-      else if (t === 0 && u > 0) str += (h > 0 ? 'lẻ ' : '') + (u === 1 ? 'mốt' : u === 5 ? 'lăm' : units[u]);
+      else if (t > 1)
+        str +=
+          units[t] + " mươi " + (u === 1 ? "mốt" : u === 5 ? "lăm" : units[u]);
+      else if (t === 0 && u > 0)
+        str +=
+          (h > 0 ? "lẻ " : "") + (u === 1 ? "mốt" : u === 5 ? "lăm" : units[u]);
       else if (h > 0 && t === 0 && u === 0) str = str.trim();
 
       return str.trim();
     };
 
-    let str = '';
+    let str = "";
     const mil = Math.floor(num / 1000000);
     const tho = Math.floor((num % 1000000) / 1000);
     const hun = num % 1000;
 
-    if (mil) str += readThree(mil) + ' triệu ';
-    if (tho) str += readThree(tho) + ' nghìn ';
+    if (mil) str += readThree(mil) + " triệu ";
+    if (tho) str += readThree(tho) + " nghìn ";
     if (hun) str += readThree(hun);
 
-    return str.trim() || 'không';
+    return str.trim() || "không";
   };
 
   const requestNotificationPermission = async () => {
-    if ('Notification' in window && Notification.permission === 'default') {
+    if ("Notification" in window && Notification.permission === "default") {
       await Notification.requestPermission();
     }
   };
@@ -222,11 +265,9 @@ const PaymentDashboard = () => {
         {/* Header */}
         <header className="border-b border-gray-200 bg-white/80 backdrop-blur-xl sticky top-0 z-40">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row items-center gap-3 justify-between">
               <div className="flex items-center gap-4">
-                <h1 className="text-2xl font-bold bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">
-                  💰 Lụm Lúa Pro
-                </h1>
+                <h1 className="text-2xl font-bold">💰 Lụm Lúa</h1>
                 <span className="text-sm text-gray-500">@tuanlee.tech</span>
               </div>
 
@@ -240,15 +281,24 @@ const PaymentDashboard = () => {
                 </button>
 
                 <button
-                  onClick={() => audioLocked ? unlockAudio() : setSoundEnabled(!soundEnabled)}
-                  className={`p-3 rounded-xl transition-all ${audioLocked
-                    ? 'bg-gray-200 text-gray-500'
-                    : soundEnabled
-                      ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-lg shadow-emerald-500/30'
-                      : 'bg-gray-200 text-gray-600'
-                    }`}
+                  onClick={() =>
+                    audioLocked ? unlockAudio() : setSoundEnabled(!soundEnabled)
+                  }
+                  className={`p-3 rounded-xl transition-all ${
+                    audioLocked
+                      ? "bg-gray-200 text-gray-500"
+                      : soundEnabled
+                      ? "bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-lg shadow-emerald-500/30"
+                      : "bg-gray-200 text-gray-600"
+                  }`}
                 >
-                  {audioLocked ? <VolumeX size={24} /> : soundEnabled ? <Volume2 size={24} /> : <VolumeX size={24} />}
+                  {audioLocked ? (
+                    <VolumeX size={24} />
+                  ) : soundEnabled ? (
+                    <Volume2 size={24} />
+                  ) : (
+                    <VolumeX size={24} />
+                  )}
                 </button>
               </div>
             </div>
@@ -261,8 +311,12 @@ const PaymentDashboard = () => {
             <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-emerald-500 to-emerald-600 p-6 text-white shadow-xl">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-emerald-100 text-sm font-medium">Hôm nay</p>
-                  <p className="text-4xl font-bold mt-2">{formatMoney(stats.today)}₫</p>
+                  <p className="text-emerald-100 text-sm font-medium">
+                    Hôm nay
+                  </p>
+                  <p className="text-4xl font-bold mt-2">
+                    {formatMoney(stats.today)}₫
+                  </p>
                 </div>
                 <DollarSign size={48} className="opacity-90" />
               </div>
@@ -274,8 +328,12 @@ const PaymentDashboard = () => {
             <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-cyan-500 to-blue-600 p-6 text-white shadow-xl">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-cyan-100 text-sm font-medium">Tổng thu nhập</p>
-                  <p className="text-4xl font-bold mt-2">{formatMoney(stats.total)}₫</p>
+                  <p className="text-cyan-100 text-sm font-medium">
+                    Tổng thu nhập
+                  </p>
+                  <p className="text-4xl font-bold mt-2">
+                    {formatMoney(stats.total)}₫
+                  </p>
                 </div>
                 <CheckCircle size={48} className="opacity-90" />
               </div>
@@ -284,7 +342,9 @@ const PaymentDashboard = () => {
             <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-purple-500 to-indigo-600 p-6 text-white shadow-xl">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-purple-100 text-sm font-medium">Số giao dịch</p>
+                  <p className="text-purple-100 text-sm font-medium">
+                    Số giao dịch
+                  </p>
                   <p className="text-4xl font-bold mt-2">{stats.count}</p>
                 </div>
                 <Bell size={48} className="opacity-90" />
@@ -294,20 +354,26 @@ const PaymentDashboard = () => {
 
           {/* Floating Notification */}
           {lastNotification && (
-            <div className="fixed top-24 right-6 z-50 animate-in slide-in-from-right duration-500">
+            <div className="fixed top-5 right-6 z-50 animate-in slide-in-from-right duration-500">
               <div className="bg-white rounded-2xl shadow-2xl border border-gray-100 p-6 min-w-96 backdrop-blur-xl">
                 <div className="flex items-start gap-4">
                   <div className="p-3 bg-gradient-to-br from-emerald-500 to-teal-500 rounded-2xl text-white">
                     <DollarSign size={32} />
                   </div>
                   <div className="flex-1">
-                    <h3 className="text-2xl font-bold text-gray-800">💰 Nhận tiền mới!</h3>
+                    <h3 className="text-2xl font-bold text-gray-800">
+                      💰 Nhận tiền mới!
+                    </h3>
                     <p className="text-4xl font-extrabold bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent mt-1">
                       {formatMoney(lastNotification.amount)}₫
                     </p>
-                    <p className="text-gray-600 mt-2">{lastNotification.description}</p>
+                    <p className="text-gray-600 mt-2">
+                      {lastNotification.description}
+                    </p>
                     <p className="text-sm text-gray-500 mt-1">
-                      {new Date(lastNotification.createdAt).toLocaleString('vi-VN')}
+                      {new Date(lastNotification.createdAt).toLocaleString(
+                        "vi-VN"
+                      )}
                     </p>
                   </div>
                 </div>
@@ -329,7 +395,9 @@ const PaymentDashboard = () => {
                 <div className="text-center py-20 text-gray-400">
                   <Bell size={64} className="mx-auto mb-4 opacity-40" />
                   <p className="text-lg">Chưa có giao dịch nào</p>
-                  <p className="text-sm mt-2">Hệ thống sẽ tự động thêm giao dịch demo mỗi 15 giây</p>
+                  <p className="text-sm mt-2">
+                    Hệ thống sẽ tự động thêm giao dịch demo mỗi 15 giây
+                  </p>
                 </div>
               ) : (
                 <div className="divide-y divide-gray-100">
@@ -341,16 +409,23 @@ const PaymentDashboard = () => {
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-5">
                           <div className="p-3 bg-emerald-100 rounded-2xl">
-                            <CheckCircle className="text-emerald-600" size={28} />
+                            <CheckCircle
+                              className="text-emerald-600"
+                              size={28}
+                            />
                           </div>
                           <div>
-                            <div className="flex items-center gap-3 text-sm text-gray-500">
+                            <div className="flex flex-col sm:flex-row  sm:items-center gap-3 text-sm text-gray-500">
                               <span className="bg-emerald-100 text-emerald-700 px-3 py-1 rounded-full font-medium">
                                 Thành công
                               </span>
-                              <span>{new Date(p.createdAt).toLocaleString('vi-VN')}</span>
+                              <span>
+                                {new Date(p.createdAt).toLocaleString("vi-VN")}
+                              </span>
                             </div>
-                            <p className="text-lg font-medium text-gray-800 mt-1">{p.description}</p>
+                            <p className="text-lg font-medium text-gray-800 mt-1">
+                              {p.description}
+                            </p>
                           </div>
                         </div>
 
