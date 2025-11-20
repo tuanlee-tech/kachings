@@ -7,7 +7,7 @@ import {
   VolumeX,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-
+const INTERVAL = 15 * 1000; // 15s
 const PaymentDashboard = () => {
   const [payments, setPayments] = useState([]);
   const [stats, setStats] = useState({ today: 0, total: 0, count: 0 });
@@ -17,16 +17,14 @@ const PaymentDashboard = () => {
 
   const audioContextRef = useRef(null);
   const vietnameseVoiceRef = useRef(null);
-
+  // Payment processing queue
+  const paymentQueueRef = useRef([]);
+  const isProcessingQueueRef = useRef(false);
+  const queueIndexRef = useRef(0);
   // Khởi tạo Web Speech API
   useEffect(() => {
     if ("speechSynthesis" in window) {
       console.log("Text-to-Speech ready!");
-    }
-  }, []);
-
-  useEffect(() => {
-    if ("speechSynthesis" in window) {
       console.log("Speech synthesis is supported");
       const handleVoicesChanged = () => {
         const voices = window.speechSynthesis.getVoices();
@@ -83,66 +81,134 @@ const PaymentDashboard = () => {
         customerName: "Khách hàng",
       };
       handleNewPayment(demoPayment);
-    }, 15000);
+    }, INTERVAL);
 
     return () => clearInterval(demoInterval);
   }, []);
 
-  // Xử lý payment mới
-  const handleNewPayment = (payment) => {
-    setPayments((prev) => [payment, ...prev].slice(0, 50));
+  const processPaymentQueue = async () => {
+    if (isProcessingQueueRef.current) return;
 
+    isProcessingQueueRef.current = true;
+
+    while (queueIndexRef.current < paymentQueueRef.current.length) {
+      const payment = paymentQueueRef.current[queueIndexRef.current];
+      queueIndexRef.current++;
+
+      // Xử lý từng payment
+      await processSinglePayment(payment);
+    }
+    // Khi xử lý xong: reset queue (dọn rác)
+    paymentQueueRef.current = [];
+    queueIndexRef.current = 0;
+
+    isProcessingQueueRef.current = false;
+  };
+  const processSinglePayment = async (payment) => {
+    // Update transactions (không batch)
+    setPayments((prev) => [payment, ...prev].slice(0, 200));
+
+    // Update stats đúng từng payment
     const today = new Date().toLocaleDateString("vi-VN");
     const paymentDate = new Date(payment.createdAt).toLocaleDateString("vi-VN");
-    const isToday = today === paymentDate;
 
     setStats((prev) => ({
-      today: isToday ? prev.today + payment.amount : prev.today,
+      today: today === paymentDate ? prev.today + payment.amount : prev.today,
       total: prev.total + payment.amount,
       count: prev.count + 1,
     }));
 
+    // Update floating message (hiện từng cái 1)
     setLastNotification(payment);
-    setTimeout(() => setLastNotification(null), 6000);
 
+    // Delay nhỏ để UI có thời gian render trước khi TTS
+    await wait(120);
+
+    // TTS
     if (soundEnabled) {
-      playNotificationSound(payment.amount);
+      if ("Notification" in window && Notification.permission === "granted") {
+        new Notification("💰 Nhận tiền mới!", {
+          body: `${formatMoney(payment.amount)}đ – ${payment.description}`,
+          icon: "/icon.png",
+        });
+      }
+      await playNotificationSound(payment.amount);
     }
 
-    if ("Notification" in window && Notification.permission === "granted") {
-      new Notification("💰 Nhận tiền mới!", {
-        body: `${formatMoney(payment.amount)}đ – ${payment.description}`,
-        icon: "/icon.png",
-      });
-    }
+    // Persist notification hiển thị 6s (không bị overwrite)
+    setTimeout(() => {
+      setLastNotification(null);
+    }, 6000);
+
+    // Cooldown 150ms để tránh TTS cancel nếu quá nhanh
+    await wait(150);
   };
 
-  const playNotificationSound = (amount) => {
+  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+  // Xử lý payment mới
+  const handleNewPayment = (payment) => {
+    paymentQueueRef.current.push(payment);
+    console.log(paymentQueueRef.current);
+    // đảm bảo chỉ gọi queue sau khi các push trong tick hiện tại hoàn tất
+    queueMicrotask(() => {
+      processPaymentQueue();
+    });
+  };
+  const stressTest = (count = 50, burstDelay = 5) => {
+    console.log(
+      `🔥 StressTest: sending ${count} payments in bursts of ${burstDelay}ms`
+    );
+
+    for (let i = 0; i < count; i++) {
+      setTimeout(() => {
+        const mockPayment = {
+          id: `${Date.now()}-${i}`,
+          amount: Math.floor(Math.random() * 800000) + 20000,
+          description: `STRESS TEST #${i}`,
+          status: "PAID",
+          createdAt: new Date().toISOString(),
+          customerName: "StressTester",
+        };
+        handleNewPayment(mockPayment);
+      }, i * burstDelay);
+    }
+  };
+  const playNotificationSound = async (amount) => {
     const moneyText = formatMoneyForSpeech(amount);
     const text = `Bạn đã nhận được ${moneyText} đồng`;
-    playVietnameseTTS(text);
+    return playVietnameseTTS(text);
   };
 
   const playVietnameseTTS = (text) => {
     console.log(
-      "%cPlaying TTS: %c" + text,
+      "%cDemo TTS: %c" + text,
       "color: gray; font-weight: normal;",
       "color: #00ee00; font-weight: bold;"
     );
+    return new Promise((resolve) => {
+      if ("speechSynthesis" in window) {
+        const utterance = new SpeechSynthesisUtterance(text);
+        if (vietnameseVoiceRef.current) {
+          utterance.voice = vietnameseVoiceRef.current;
+        }
+        utterance.rate = 0.9;
+        utterance.pitch = 1;
+        utterance.onend = resolve;
 
-    if ("speechSynthesis" in window) {
-      const utterance = new SpeechSynthesisUtterance(text);
-      if (vietnameseVoiceRef.current) {
-        utterance.voice = vietnameseVoiceRef.current;
+        // Anti-chồng tiếng (fix chrome đọc đè)
+        window.speechSynthesis.cancel();
+
+        // Cho browser 80ms để clear queue
+        setTimeout(() => {
+          playBeep();
+          window.speechSynthesis.speak(utterance);
+        }, 80);
+      } else {
+        playBeep();
+        resolve();
       }
-      utterance.rate = 0.9;
-      utterance.pitch = 1;
-      window.speechSynthesis.cancel();
-      playBeep();
-      window.speechSynthesis.speak(utterance);
-    } else {
-      playBeep();
-    }
+    });
   };
 
   const playBeep = () => {
@@ -306,6 +372,15 @@ const PaymentDashboard = () => {
         </header>
 
         <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+          <button
+            onClick={() => {
+              // stressTest(120, 3)  // 120 webhook / 3ms → ~300–400 webhook/s
+              stressTest(500, 1); // 500 events / ~1 sec → Nếu UI vẫn chạy mượt, TTS không chồng, stats vẫn đúng → hệ thống đạt chuẩn product-ready.
+            }}
+            className="px-5 py-2.5 my-3 bg-red-500 text-white rounded-xl shadow-lg hover:shadow-xl transition-all"
+          >
+            🚀 Stress Test 500 giao dịch / ~1 giây
+          </button>
           {/* Stats Cards – Modern Glassmorphism */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
             <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-emerald-500 to-emerald-600 p-6 text-white shadow-xl">
